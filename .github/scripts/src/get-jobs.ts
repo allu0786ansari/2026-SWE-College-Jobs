@@ -1,18 +1,22 @@
+import "dotenv/config";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import * as core from "@actions/core";
-import dotenv from "dotenv";
 import { fetchJobCounts, fetchJobs } from "./queries";
 import { Job } from "./types/job.schema";
+import { JobCounts } from "./types/job-counts.schema";
 import { HEADERS, MARKERS, TABLES } from "./config";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const APPLY_IMG_URL = process.env.APPLY_IMG_URL;
 
 function generateMarkdownTable(
   jobs: Job[],
   salary?: boolean,
-  interval: string = "yr"
+  interval: string = "yr",
 ) {
   const headers = salary
     ? [...HEADERS.slice(0, 3), "Salary", ...HEADERS.slice(3)]
@@ -60,7 +64,7 @@ function generateMarkdownTable(
 function updateTable(
   readmeContent: string,
   marker: { start: string; end: string },
-  tableContent: string
+  tableContent: string,
 ): string {
   const { start, end } = marker;
   const before = readmeContent.split(start)[0];
@@ -70,7 +74,7 @@ function updateTable(
 
 function updateReadme(
   tables: { [K in keyof typeof MARKERS]: string },
-  filePath: string
+  filePath: string,
 ) {
   const readmePath = path.join(__dirname, filePath);
   let readmeContent = fs.readFileSync(readmePath, "utf8");
@@ -82,27 +86,25 @@ function updateReadme(
   fs.writeFileSync(readmePath, readmeContent, "utf8");
 }
 
-async function updateCounts(filePath: string) {
+function updateCounts(filePath: string, jobCounts: JobCounts) {
   const readmePath = path.join(__dirname, filePath);
   let readmeContent = fs.readFileSync(readmePath, { encoding: "utf8" });
 
-  const jobCounts = await fetchJobCounts();
-
   readmeContent = readmeContent.replace(
     /(\[Internships :books:\]\(\/\))(\s+-\s+\*\*\d+\*\*\s+available)/,
-    `$1 - **${jobCounts.intern_usa_count}** available`
+    `$1 - **${jobCounts.intern_usa_count}** available`,
   );
   readmeContent = readmeContent.replace(
     /(\[New Graduate :mortar_board:\]\(\/NEW_GRAD_USA\.md\))(\s+-\s+\*\*\d+\*\* available)?/,
-    `$1 - **${jobCounts.new_grad_usa_count}** available`
+    `$1 - **${jobCounts.new_grad_usa_count}** available`,
   );
   readmeContent = readmeContent.replace(
     /(\[Internships :books:\]\(\/INTERN_INTL\.md\))(\s+-\s+\*\*\d+\*\*)?/,
-    `$1 - **${jobCounts.intern_intl_count}**`
+    `$1 - **${jobCounts.intern_intl_count}**`,
   );
   readmeContent = readmeContent.replace(
     /(\[New Graduate :mortar_board:\]\(\/NEW_GRAD_INTL\.md\))(\s+-\s+\*\*\d+\*\* available)?/,
-    `$1 - **${jobCounts.new_grad_intl_count}** available`
+    `$1 - **${jobCounts.new_grad_intl_count}** available`,
   );
 
   fs.writeFileSync(readmePath, readmeContent, { encoding: "utf8" });
@@ -110,6 +112,8 @@ async function updateCounts(filePath: string) {
 
 async function main() {
   try {
+    const jobCounts = await fetchJobCounts();
+
     for (const table of TABLES) {
       const faangJobs = await fetchJobs({
         ...table.query,
@@ -131,7 +135,7 @@ async function main() {
       };
 
       updateReadme(tables, table.path);
-      updateCounts(table.path);
+      updateCounts(table.path, jobCounts);
     }
   } catch (error) {
     if (error instanceof Error) {
