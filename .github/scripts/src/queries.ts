@@ -7,7 +7,7 @@ export async function fetchJobs(params: {
   is_usa: boolean;
   company_type: string;
 }) {
-  const { data, error } = await supabase.rpc("get_jobs", params);
+  const { data, error } = await supabase.schema("jobs").rpc("get_jobs", params);
 
   if (error) {
     throw new Error(`Supabase query error: ${error.message}`);
@@ -21,7 +21,7 @@ export async function fetchJobs(params: {
 }
 
 export async function fetchJobCounts() {
-  const { data, error } = await supabase.rpc("get_swe_job_counts");
+  const { data, error } = await supabase.schema("jobs").rpc("get_swe_job_counts");
 
   if (error) {
     throw new Error(`Supabase query error: ${error.message}`);
